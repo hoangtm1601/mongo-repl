@@ -1,0 +1,107 @@
+version: '3.7'
+services:
+  rabbitmq:
+    hostname: rabbitmq
+    container_name: rabbitmq
+    image: rabbitmq:3.8.0-management
+    volumes:
+      - ./data/rabbitmq:/var/lib/rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: always
+  mongo1:
+    hostname: mongo1
+    container_name: mongo1
+    image: mongo:4
+    volumes:
+      - ./data/mongo1/db:/data/db
+      - ./data/mongo1/configdb:/data/configdb
+    expose:
+      - "27017"
+    ports:
+      - "27017:27017"
+    restart: always
+    command: [ "mongod", "--bind_ip_all", "--replSet", "rs" ]
+    networks:
+      - mongo_rs
+  mongo2:
+    hostname: mongo2
+    container_name: mongo2
+    build:
+      context: .
+      dockerfile: images/Dockerfile
+    image: wfi-mongo
+    volumes:
+      - ./data/mongo2/db:/data/db
+      - ./data/mongo2/configdb:/data/configdb
+    ports:
+      - "27018:27017"
+    expose:
+      - "27017"
+    restart: always
+    command: bash -c "/usr/wait-for-it.sh --timeout=0 mongo1:27017 && mongod --bind_ip_all --replSet rs"
+    depends_on:
+      - mongo1
+    networks:
+      - mongo_rs
+  mongo3:
+    hostname: mongo3
+    container_name: mongo3
+    build:
+      context: .
+      dockerfile: images/Dockerfile
+    image: wfi-mongo
+    volumes:
+      - ./data/mongo3/db:/data/db
+      - ./data/mongo3/configdb:/data/configdb
+    ports:
+      - "27019:27017"
+    expose:
+      - "27017"
+    restart: always
+    command: bash -c "/usr/wait-for-it.sh --timeout=0 mongo1:27017 && mongod --bind_ip_all --replSet rs"
+    depends_on:
+      - mongo1
+      - mongo2
+    networks:
+      - mongo_rs
+  redis-cluster:
+    image: grokzen/redis-cluster:5.0.5
+    container_name: redis_cluster
+    volumes:
+      - ./data/redis-cluster:/redis-data
+    ports:
+      - "7000:7000"
+      - "7001:7001"
+      - "7002:7002"
+    restart: always
+  zookeeper:
+    image: wurstmeister/zookeeper
+    ports:
+      - "2181:2181"
+    networks:
+      - kafka
+  kafka:
+    hostname: kafka
+    image: wurstmeister/kafka
+    container_name: kafka
+    links:
+      - zookeeper
+    volumes:
+      - ./data/kafka:/kafka
+    expose:
+      - 9092
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_DELETE_TOPIC_ENABLE: 'true'
+      KAFKA_CREATE_TOPICS: "topic-test:1:1"
+    networks:
+      - kafka
+networks:
+  mongo_rs:
+  kafka:
