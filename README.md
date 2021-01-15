@@ -1,3 +1,11 @@
+**Summary**
+A docker-compose set that support:
+- Redis cluster
+- RabbitMQ
+- MongoDB (Replica set - 3 nodes)
+- Kafka
+
+
 **Building step**
 
 ```
