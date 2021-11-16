@@ -1,4 +1,4 @@
-version: '3.7'
+version: "2.4"
 services:
   rabbitmq:
     hostname: rabbitmq
@@ -10,6 +10,7 @@ services:
       - "5672:5672"
       - "15672:15672"
     restart: always
+
   mongo1:
     hostname: mongo1
     container_name: mongo1
@@ -22,9 +23,12 @@ services:
     ports:
       - "27017:27017"
     restart: always
-    command: [ "mongod", "--bind_ip_all", "--replSet", "rs" ]
+    command: ["mongod", "--bind_ip_all", "--replSet", "rs"]
     networks:
       - mongo_rs
+    healthcheck:
+      test: "exit 0"
+
   mongo2:
     hostname: mongo2
     container_name: mongo2
@@ -40,11 +44,13 @@ services:
     expose:
       - "27017"
     restart: always
-    command: bash -c "/usr/wait-for-it.sh --timeout=0 mongo1:27017 && mongod --bind_ip_all --replSet rs"
-    depends_on:
-      - mongo1
+    command: ["mongod", "--bind_ip_all", "--replSet", "rs"]
     networks:
       - mongo_rs
+    depends_on:
+      mongo1:
+        condition: service_healthy
+
   mongo3:
     hostname: mongo3
     container_name: mongo3
@@ -60,12 +66,13 @@ services:
     expose:
       - "27017"
     restart: always
-    command: bash -c "/usr/wait-for-it.sh --timeout=0 mongo1:27017 && mongod --bind_ip_all --replSet rs"
-    depends_on:
-      - mongo1
-      - mongo2
+    command: ["mongod", "--bind_ip_all", "--replSet", "rs"]
     networks:
       - mongo_rs
+    depends_on:
+      mongo1:
+        condition: service_healthy
+
   redis-cluster:
     image: grokzen/redis-cluster:5.0.5
     container_name: redis_cluster
@@ -82,6 +89,7 @@ services:
       - "2181:2181"
     networks:
       - kafka
+
   kafka:
     hostname: kafka
     image: wurstmeister/kafka
@@ -97,11 +105,12 @@ services:
     environment:
       KAFKA_ADVERTISED_HOST_NAME: kafka
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
-      KAFKA_DELETE_TOPIC_ENABLE: 'true'
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
       KAFKA_CREATE_TOPICS: "topic-test:1:1"
     networks:
       - kafka
+
 networks:
   mongo_rs:
   kafka:
